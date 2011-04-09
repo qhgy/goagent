@@ -1,0 +1,9 @@
+application: your_appid
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /fetch\.py
+  script: fetch.py
+  secure: optional

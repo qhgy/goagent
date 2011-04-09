@@ -1,0 +1,1 @@
+%~dps0certutil.exe -f -addstore root "%~dp0ca.crt"
