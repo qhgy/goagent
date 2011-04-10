@@ -227,8 +227,19 @@ class RootCA(object):
 
 ROOTCA = RootCA()
 
-class Encoder(object):
-    def encode(self, dic):
+class BaseFetcher(object):
+    def __init__(self, HTTPRequestHandler):
+        assert isinstance(HTTPRequestHandler, BaseHTTPServer.BaseHTTPRequestHandler)
+        self.handler = HTTPRequestHandler
+    def perform(self):
+        raise NotImplemented(u'BaseFetcher.perform not implemented.')
+
+class GaeFetcher(BaseFetcher):
+    partSize = 1024000
+    fetchTimeout = 5
+    FR_Headers = ('', 'host', 'vary', 'via', 'x-forwarded-for', 'proxy-authorization', 'proxy-connection', 'upgrade', 'keep-alive')
+
+    def _encode(self, dic):
         def _quote(s):
             return str(s).replace('\x10', '\x100').replace('=','\x101').replace('&','\x102')
         res = []
@@ -236,7 +247,7 @@ class Encoder(object):
             res.append('%s=%s' % (_quote(k), _quote(v)))
         return '&'.join(res)
 
-    def decode(self, qs, keep_blank_values=False, strict_parsing=False):
+    def _decode(self, qs, keep_blank_values=False, strict_parsing=False):
         def _unquote(s):
             unquote_map = {'0':'\x10', '1':'=', '2':'&'}
             res = s.split('\x10')
@@ -264,162 +275,9 @@ class Encoder(object):
                 dic[_unquote(nv[0])] = _unquote(nv[1])
         return dic
 
-encoder = Encoder()
-
-class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    partSize = 1024000
-    fetchTimeout = 5
-    FR_Headers = ('', 'host', 'vary', 'via', 'x-forwarded-for', 'proxy-authorization', 'proxy-connection', 'upgrade', 'keep-alive')
-
-    def address_string(self):
-        return '%s:%s' % self.client_address[:2]
-
-    def send_response(self, code, message=None):
-        self.log_request(code)
-        if message is None:
-            if code in self.responses:
-                message = self.responses[code][0]
-            else:
-                message = 'GoAgent Notify'
-        if self.request_version != 'HTTP/0.9':
-            self.wfile.write('%s %d %s\r\n' % (self.protocol_version, code, message))
-
-    def end_error(self, code, message=None, data=None):
-        if not data:
-            self.send_error(code, message)
-        else:
-            self.send_response(code, message)
-            self.wfile.write(data)
-        self.connection.close()
-
-    def do_CONNECT(self):
-        if self.path in common.HOSTS:
-            return self.do_CONNECT_1()
-        else:
-            return self.do_CONNECT_2()
-
-    def do_CONNECT_1(self):
-        MAX_IDLING = 30
-        try:
-            hosts = common.HOSTS[self.path]
-            port  = int(self.path.split(':')[1])
-            self.log_message('Random TCPConnection to %s within %d hosts' % (self.path, len(hosts)))
-            conn = RandomTCPConnection(hosts, port)
-            if conn.socket is None:
-                self.send_error(502, 'Cannot Connect to %s:%s' % (hosts, port))
-                return
-            self.log_request(200)
-            self.wfile.write('%s 200 Connection established\r\n' % self.protocol_version)
-            self.wfile.write('Proxy-agent: %s\r\n\r\n' % self.version_string())
-
-            socs = [self.connection, conn.socket]
-            count = 0
-            while 1:
-                count += 1
-                (recv, _, error) = select.select(socs, [], socs, 2)
-                if error:
-                    break
-                if recv:
-                    for in_ in recv:
-                        data = in_.recv(8192)
-                        if in_ is self.connection:
-                            out = conn.socket
-                        else:
-                            out = self.connection
-                        if data:
-                            out.send(data)
-                            count = 0
-                if count == MAX_IDLING:
-                    break
-        except:
-            exc_info = traceback.format_exc()
-            sys.stderr.write(exc_info)
-            self.send_error(502, exc_info)
-        finally:
-            for soc in (self.connection, conn):
-                try:
-                    soc.close()
-                except:
-                    pass
-
-    def do_CONNECT_2(self):
-        # for ssl proxy
-        host, _, port = self.path.rpartition(':')
-        keyFile, crtFile = ROOTCA.getCertificate(host)
-        self.send_response(200)
-        self.end_headers()
-        try:
-            ssl_sock = ssl.wrap_socket(self.connection, keyFile, crtFile, True)
-        except ssl.SSLError, e:
-            print 'SSLError: ' + str(e)
-            return
-
-        # rewrite request line, url to abs
-        first_line = ''
-        while True:
-            data = ssl_sock.read()
-            # EOF?
-            if data == '':
-                # bad request
-                ssl_sock.close()
-                self.connection.close()
-                return
-            # newline(\r\n)?
-            first_line += data
-            if '\n' in first_line:
-                first_line, data = first_line.split('\n', 1)
-                first_line = first_line.rstrip('\r')
-                break
-        # got path, rewrite
-        method, path, ver = first_line.split()
-        if path.startswith('/'):
-            path = 'https://%s%s' % (host if port=='443' else self.path, path)
-        # connect to local proxy server
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', common.LISTEN_PORT))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32*1024)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32*1024)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        sock.send('%s %s %s\r\n%s' % (method, path, ver, data))
-
-        # forward https request
-        ssl_sock.settimeout(1)
-        while True:
-            try:
-                data = ssl_sock.read(8192)
-            except ssl.SSLError, e:
-                if str(e).lower().find('timed out') == -1:
-                    # error
-                    sock.close()
-                    ssl_sock.close()
-                    self.connection.close()
-                    return
-                # timeout
-                break
-            if data != '':
-                sock.send(data)
-            else:
-                # EOF
-                break
-
-        ssl_sock.setblocking(True)
-        # simply forward response
-        while True:
-            data = sock.recv(8192)
-            if data != '':
-                ssl_sock.write(data)
-            else:
-                # EOF
-                break
-        # clean
-        sock.close()
-        ssl_sock.shutdown(socket.SHUT_WR)
-        ssl_sock.close()
-        self.connection.close()
-
     def _fetch(self, url, method, headers, payload):
         errors = []
-        params = encoder.encode({'url':url, 'method':method, 'headers':headers, 'payload':payload})
+        params = self._encode({'url':url, 'method':method, 'headers':headers, 'payload':payload})
         params = zlib.compress(params)
         for i in range(1, 3):
             if common.FETCH_PROXY:
@@ -453,7 +311,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             finally:
                 # fetch server down, select another server
                 if selected:
-                    self.log_message('_fetch errors(%r), common.select(\'https\') again' % selected)
+                    self.handler.log_message('_fetch errors(%r), common.select(\'https\') again' % selected)
                     common.select('https')
                     common.show()
             # something wrong, continue to fetch again
@@ -474,7 +332,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 data['content'] = raw_data[12+hlen:]
                 if data['code'] == 555:     #Urlfetch Failed
                     raise ValueError(data['content'])
-                data['headers'] = encoder.decode(raw_data[12:12+hlen])
+                data['headers'] = self._decode(raw_data[12:12+hlen])
                 return (0, data)
             except Exception, e:
                 errors.append(str(e))
@@ -484,8 +342,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         m = map(int, m.groups())
         start = m[0]
         end = m[2] - 1
-        if 'range' in self.headers:
-            req_range = re.search(r'(\d+)?-(\d+)?', self.headers['range'])
+        if 'range' in self.handler.headers:
+            req_range = re.search(r'(\d+)?-(\d+)?', self.handler.headers['range'])
             if req_range:
                 req_range = [u and int(u) for u in req_range.groups()]
                 if req_range[0] is None:
@@ -506,20 +364,20 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             data['code'] = 200
             del data['headers']['content-range']
         data['headers']['content-length'] = end-start+1
-        partSize = LocalProxyHandler.partSize
-        self.send_response(data['code'])
+        partSize = GaeFetcher.partSize
+        self.handler.send_response(data['code'])
         for k,v in data['headers'].iteritems():
-            self.send_header(k.title(), v)
-        self.end_headers()
+            self.handler.send_header(k.title(), v)
+        self.handler.end_headers()
         if start == m[0]:
-            self.wfile.write(data['content'])
+            self.handler.wfile.write(data['content'])
             start = m[1] + 1
             partSize = len(data['content'])
         failed = 0
         print '>>>>>>>>>>>>>>> Range Fetch started'
         while start <= end:
-            self.headers['Range'] = 'bytes=%d-%d' % (start, start + partSize - 1)
-            retval, data = self._fetch(self.path, self.command, self.headers, '')
+            self.handler.headers['Range'] = 'bytes=%d-%d' % (start, start + partSize - 1)
+            retval, data = self._fetch(self.handler.path, self.handler.command, self.handler.headers, '')
             if retval != 0:
                 time.sleep(4)
                 continue
@@ -532,48 +390,208 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             start = int(m.group(2)) + 1
             print '>>>>>>>>>>>>>>> %s %d' % (data['headers']['content-range'], end)
             failed = 0
-            self.wfile.write(data['content'])
+            self.handler.wfile.write(data['content'])
         print '>>>>>>>>>>>>>>> Range Fetch ended'
-        self.connection.close()
+        self.handler.connection.close()
         return True
 
-    def do_METHOD(self):
-        if self.path.startswith('/'):
-            host = self.headers['host']
+    def perform(self):
+        if self.handler.path.startswith('/'):
+            host = self.handler.headers['host']
             if host.endswith(':80'):
                 host = host[:-3]
-            self.path = 'http://%s%s' % (host , self.path)
+            self.handler.path = 'http://%s%s' % (host , self.handler.path)
 
-        payload_len = int(self.headers.get('content-length', 0))
+        payload_len = int(self.handler.headers.get('content-length', 0))
         if payload_len > 0:
-            payload = self.rfile.read(payload_len)
+            payload = self.handler.rfile.read(payload_len)
         else:
             payload = ''
 
-        for k in LocalProxyHandler.FR_Headers:
+        for k in GaeFetcher.FR_Headers:
             try:
-                del self.headers[k]
+                del self.handler.headers[k]
             except KeyError:
                 pass
 
-        retval, data = self._fetch(self.path, self.command, self.headers, payload)
+        retval, data = self._fetch(self.handler.path, self.handler.command, self.handler.headers, payload)
         try:
             if retval == -1:
-                return self.end_error(502, str(data))
-            if data['code']==206 and self.command=='GET':
+                return self.handler.end_error(502, str(data))
+            if data['code']==206 and self.handler.command=='GET':
                 m = re.search(r'bytes\s+(\d+)-(\d+)/(\d+)', data['headers'].get('content-range',''))
                 if m and self._RangeFetch(m, data):
                     return
-            self.send_response(data['code'])
+            self.handler.send_response(data['code'])
             for k,v in data['headers'].iteritems():
-                self.send_header(k.title(), v)
-            self.end_headers()
-            self.wfile.write(data['content'])
+                self.handler.send_header(k.title(), v)
+            self.handler.end_headers()
+            self.handler.wfile.write(data['content'])
         except socket.error, (err, _):
             # Connection closed before proxy return
             if err == errno.EPIPE or err == 10053:
                 return
+        self.handler.connection.close()
+
+class PhpFetcher(BaseFetcher):
+    def perform(self):
+        pass
+
+class ConnectFetcher(BaseFetcher):
+
+    def perform(self):
+        if self.handler.path in common.HOSTS:
+            return self._direct()
+        else:
+            return self._forward()
+
+    def _direct(self):
+        MAX_IDLING = 30
+        try:
+            hosts = common.HOSTS[self.handler.path]
+            port  = int(self.handler.path.split(':')[1])
+            self.handler.log_message('Random TCPConnection to %s within %d hosts' % (self.handler.path, len(hosts)))
+            conn = RandomTCPConnection(hosts, port)
+            if conn.socket is None:
+                self.handler.send_error(502, 'Cannot Connect to %s:%s' % (hosts, port))
+                return
+            self.handler.log_request(200)
+            self.handler.wfile.write('%s 200 Connection established\r\n' % self.handler.protocol_version)
+            self.handler.wfile.write('Proxy-agent: %s\r\n\r\n' % self.handler.version_string())
+
+            socs = [self.handler.connection, conn.socket]
+            count = 0
+            while 1:
+                count += 1
+                (recv, _, error) = select.select(socs, [], socs, 2)
+                if error:
+                    break
+                if recv:
+                    for in_ in recv:
+                        data = in_.recv(8192)
+                        if in_ is self.handler.connection:
+                            out = conn.socket
+                        else:
+                            out = self.handler.connection
+                        if data:
+                            out.send(data)
+                            count = 0
+                if count == MAX_IDLING:
+                    break
+        except:
+            exc_info = traceback.format_exc()
+            sys.stderr.write(exc_info)
+            self.handler.send_error(502, exc_info)
+        finally:
+            for soc in (self.handler.connection, conn):
+                try:
+                    soc.close()
+                except:
+                    pass
+
+    def _forward(self):
+        # for ssl proxy
+        host, _, port = self.handler.path.rpartition(':')
+        keyFile, crtFile = ROOTCA.getCertificate(host)
+        self.handler.send_response(200)
+        self.handler.end_headers()
+        try:
+            ssl_sock = ssl.wrap_socket(self.handler.connection, keyFile, crtFile, True)
+        except ssl.SSLError, e:
+            print 'SSLError: ' + str(e)
+            return
+
+        # rewrite request line, url to abs
+        first_line = ''
+        while True:
+            data = ssl_sock.read()
+            # EOF?
+            if data == '':
+                # bad request
+                ssl_sock.close()
+                self.handler.connection.close()
+                return
+            # newline(\r\n)?
+            first_line += data
+            if '\n' in first_line:
+                first_line, data = first_line.split('\n', 1)
+                first_line = first_line.rstrip('\r')
+                break
+        # got path, rewrite
+        method, path, ver = first_line.split()
+        if path.startswith('/'):
+            path = 'https://%s%s' % (host if port=='443' else self.handler.path, path)
+        # connect to local proxy server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(('127.0.0.1', common.LISTEN_PORT))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32*1024)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32*1024)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        sock.send('%s %s %s\r\n%s' % (method, path, ver, data))
+
+        # forward https request
+        ssl_sock.settimeout(1)
+        while True:
+            try:
+                data = ssl_sock.read(8192)
+            except ssl.SSLError, e:
+                if str(e).lower().find('timed out') == -1:
+                    # error
+                    sock.close()
+                    ssl_sock.close()
+                    self.handler.connection.close()
+                    return
+                # timeout
+                break
+            if data != '':
+                sock.send(data)
+            else:
+                # EOF
+                break
+
+        ssl_sock.setblocking(True)
+        # simply forward response
+        while True:
+            data = sock.recv(8192)
+            if data != '':
+                ssl_sock.write(data)
+            else:
+                # EOF
+                break
+        # clean
+        sock.close()
+        ssl_sock.shutdown(socket.SHUT_WR)
+        ssl_sock.close()
+        self.handler.connection.close()
+
+class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
+    def address_string(self):
+        return '%s:%s' % self.client_address[:2]
+
+    def send_response(self, code, message=None):
+        self.log_request(code)
+        if message is None:
+            if code in self.responses:
+                message = self.responses[code][0]
+            else:
+                message = 'GoAgent Notify'
+        if self.request_version != 'HTTP/0.9':
+            self.wfile.write('%s %d %s\r\n' % (self.protocol_version, code, message))
+
+    def end_error(self, code, message=None, data=None):
+        if not data:
+            self.send_error(code, message)
+        else:
+            self.send_response(code, message)
+            self.wfile.write(data)
         self.connection.close()
+
+    def do_CONNECT(self):
+        ConnectFetcher(self).perform()
+
+    def do_METHOD(self):
+        GaeFetcher(self).perform()
 
     do_GET = do_METHOD
     do_HEAD = do_METHOD

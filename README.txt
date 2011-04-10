@@ -3,6 +3,13 @@
 Q: GoAgent是什么？
 A: GoAgent是一个使用Python和Google Appengine SDK编写的代理软件。
 
+Q: 如何部署和使用GoAgent?
+A: 1.申请Google Appengine并创建appid
+   2.下载GoAgent https://github.com/phus/goagent/archives/master 
+   3.双击server\upload.bat,输入你的appid和你的用户名密码，上传服务端
+   4.把local\proxy.ini中的your_appid改成你申请到的appid
+   好了，现在你可以运行taskbar.exe来翻墙了。
+
 Q: 既然已有WallProxy/GappProxy，为什么需要有GoAgent?
 A: WallProxy项目关闭了，GappProxy半年没更新。为了应对GFW，需要一个更新快的GoAgent。
 
@@ -10,7 +17,7 @@ Q: 比WallProxy/GappProxy强在哪里？
 A: 更新快，速度快，翻墙能力强。
 
 Q: 需要装Python或者Google Appenginge SDK后才能用GoAgent吗？
-A: 完全不用，GoAgent是绿色软件哦～～
+A: 完全不用，GoAgent是绿色软件哦。
 
 Q: GoAgent有哪些弱点？
 A: 为了简单快速，GoAgent的数据基本是明文的(head+gzip)
@@ -33,19 +40,13 @@ A: GoAgent的代码和程序是一起的，源代码就是运行程序。
 Q: 如何对GoAgent进行修改？
 A: 客户端代码直接改local/proxy.py,改完重启taskbar.exe即可；服务端改server/fetch.py,改完用upload.bat上传即可。
 
-Q: 如何部署和使用GoAgent?
-A: 1.申请Google Appengine并创建appid
-   2.下载GoAgent https://github.com/phus/goagent/archives/master 
-   3.双击server\upload.bat,输入你的appid和你的用户名密码，上传服务端
-   4.把local\proxy.ini中的your_appid改成你申请到的appid
-   好了，现在你可以运行taskbar.exe来翻墙了。
-
 Q: 已做的工作和将要做的工作？
 A:  DONE:
     1. 随机获取proxy.ini中配置的可用fetch ip,提高翻墙能力
     2. 对于google的某些https域名，直接启用转发。
     3. 移植了wallproxy的_RangeFetch，支持youtube
     TODO:
+    1. 集成APJP-0.7.0
     1. 支持多个fetch server 
     2. 实现xmpp fetch
 
