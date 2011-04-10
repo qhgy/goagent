@@ -54,43 +54,42 @@ class Common(object):
         self.config.read(self.FILENAME)
         self.LISTEN_IP   = self.config.get('listen', 'ip')
         self.LISTEN_PORT = self.config.getint('listen', 'port')
-        self.GAE_HOST  = self.config.get('gae', 'host')
-        self.GAE_PATH  = self.config.get('gae', 'path')
+        self.GAE_HOST    = self.config.get('gae', 'host')
+        self.GAE_PATH    = self.config.get('gae', 'path')
+        self.GAE_HTTP    = self.config.get('gae', 'http')
+        self.GAE_HTTPS   = self.config.get('gae', 'https')
         if self.config.has_option('gae', 'proxy'):
             proxies = self.config.get('gae', 'proxy')
             self.GAE_PROXY = dict(re.match(r'^(\w+)://(\S+)$', proxy.strip()).group(1, 2) for proxy in proxies.split('|'))
         else:
-            self.GAE_PROXY = {}
+            self.GAE_PROXY = None
         self.HOSTS = dict((k, re.split(r'[,|]', v)) for k, v in self.config.items('hosts'))
-        self.select_lock = thread.allocate_lock()
-        self.select('http')
+        self.select_gae_ip_lock = thread.allocate_lock()
+        self.select_gae_ip('http')
 
-    def select(self, scheme='https'):
+    def select_gae_ip(self, scheme='https'):
         '''select a available fetch server ip from proxy.ini ip list'''
-        if scheme not in ('https', 'http'):
-            raise TypeError(u'Common.select scheme must in (\'https\', \'http\')')
-        hosts = self.config.get('gae', scheme).split(':')[0].split('|')
-        port  = int(self.config.get('gae', scheme).split(':')[1])
-        if not all(hosts):
-            return
+        schemeval = {'http':self.GAE_HTTP, 'https':self.GAE_HTTPS}[scheme]
+        hosts = schemeval.split(':')[0].split('|')
+        port  = int(schemeval.split(':')[1])
         random.shuffle(hosts)
         for hosts in  [hosts[i:i+RandomTCPConnection.CONNECT_COUNT] for i in xrange(0,len(hosts),RandomTCPConnection.CONNECT_COUNT)]:
             conn = RandomTCPConnection(hosts, port)
             if conn.socket is not None:
-                fetch_ip     = conn.socket.getpeername()[0]
-                fetch_server = '%s://%s:%s/%s' % (scheme, self.GAE_HOST, port, self.GAE_PATH.lstrip('/'))
-                fetch_server_raw = '%s://%s:%s/%s' % (scheme, fetch_ip, port, self.GAE_PATH.lstrip('/'))
-                self.select_lock.acquire()
-                self.GAE_IP = fetch_ip
-                self.GAE_SERVER = fetch_server
-                self.GAE_SERVER_RAW = fetch_server_raw
-                self.select_lock.release()
+                gae_ip     = conn.socket.getpeername()[0]
+                gae_server = '%s://%s:%s/%s' % (scheme, self.GAE_HOST, port, self.GAE_PATH.lstrip('/'))
+                gae_server_raw = '%s://%s:%s/%s' % (scheme, gae_ip, port, self.GAE_PATH.lstrip('/'))
+                self.select_gae_ip_lock.acquire()
+                self.GAE_IP = gae_ip
+                self.GAE_SERVER = gae_server
+                self.GAE_SERVER_RAW = gae_server_raw
+                self.select_gae_ip_lock.release()
                 conn.close()
                 break
             else:
                 conn.close()
         else:
-            raise RuntimeError('Common RandomTCPConnection cannot select_http(s)_ip from %r!' % hosts)
+            raise RuntimeError('Common RandomTCPConnection cannot select_gae_ip from %r!' % hosts)
 
     def show(self):
         '''show current config'''
@@ -294,13 +293,13 @@ class GaeFetcher(BaseFetcher):
                 data = response.read()
                 response.close()
             except urllib2.HTTPError, e:
-                # www.google.cn:80 is down, set selected to trigger common.select('https')
+                # www.google.cn:80 is down, set selected to trigger common.select_gae_ip('https')
                 if e.code == 502:
                     selected = str(e)
                 errors.append('%d: %s' % (e.code, httplib.responses.get(e.code, 'Unknown HTTPError')))
                 continued = 1
             except urllib2.URLError, e:
-                # google ssl is down, set selected to trigger common.select('https')
+                # google ssl is down, set selected to trigger common.select_gae_ip('https')
                 if e.reason[0] in (11004, 10051, 10054, 10060, 'timed out'):
                     selected = str(e)
                 errors.append(str(e))
@@ -311,8 +310,8 @@ class GaeFetcher(BaseFetcher):
             finally:
                 # fetch server down, select another server
                 if selected:
-                    self.handler.log_message('_fetch errors(%r), common.select(\'https\') again' % selected)
-                    common.select('https')
+                    self.handler.log_message('_fetch errors(%r), common.select_gae_ip(\'https\') again' % selected)
+                    common.select_gae_ip('https')
                     common.show()
             # something wrong, continue to fetch again
             if continued:
