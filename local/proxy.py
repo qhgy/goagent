@@ -54,13 +54,13 @@ class Common(object):
         self.config.read(self.FILENAME)
         self.LISTEN_IP   = self.config.get('listen', 'ip')
         self.LISTEN_PORT = self.config.getint('listen', 'port')
-        self.FETCH_HOST  = self.config.get('fetch', 'host')
-        self.FETCH_PATH  = self.config.get('fetch', 'path')
-        if self.config.has_option('fetch', 'proxy'):
-            proxies = self.config.get('fetch', 'proxy')
-            self.FETCH_PROXY = dict(re.match(r'^(\w+)://(\S+)$', proxy.strip()).group(1, 2) for proxy in proxies.split('|'))
+        self.GAE_HOST  = self.config.get('gae', 'host')
+        self.GAE_PATH  = self.config.get('gae', 'path')
+        if self.config.has_option('gae', 'proxy'):
+            proxies = self.config.get('gae', 'proxy')
+            self.GAE_PROXY = dict(re.match(r'^(\w+)://(\S+)$', proxy.strip()).group(1, 2) for proxy in proxies.split('|'))
         else:
-            self.FETCH_PROXY = {}
+            self.GAE_PROXY = {}
         self.HOSTS = dict((k, re.split(r'[,|]', v)) for k, v in self.config.items('hosts'))
         self.select_lock = thread.allocate_lock()
         self.select('http')
@@ -69,8 +69,8 @@ class Common(object):
         '''select a available fetch server ip from proxy.ini ip list'''
         if scheme not in ('https', 'http'):
             raise TypeError(u'Common.select scheme must in (\'https\', \'http\')')
-        hosts = self.config.get('fetch', scheme).split(':')[0].split('|')
-        port  = int(self.config.get('fetch', scheme).split(':')[1])
+        hosts = self.config.get('gae', scheme).split(':')[0].split('|')
+        port  = int(self.config.get('gae', scheme).split(':')[1])
         if not all(hosts):
             return
         random.shuffle(hosts)
@@ -78,12 +78,12 @@ class Common(object):
             conn = RandomTCPConnection(hosts, port)
             if conn.socket is not None:
                 fetch_ip     = conn.socket.getpeername()[0]
-                fetch_server = '%s://%s:%s/%s' % (scheme, self.FETCH_HOST, port, self.FETCH_PATH.lstrip('/'))
-                fetch_server_raw = '%s://%s:%s/%s' % (scheme, fetch_ip, port, self.FETCH_PATH.lstrip('/'))
+                fetch_server = '%s://%s:%s/%s' % (scheme, self.GAE_HOST, port, self.GAE_PATH.lstrip('/'))
+                fetch_server_raw = '%s://%s:%s/%s' % (scheme, fetch_ip, port, self.GAE_PATH.lstrip('/'))
                 self.select_lock.acquire()
-                self.FETCH_IP = fetch_ip
-                self.FETCH_SERVER = fetch_server
-                self.FETCH_SERVER_RAW = fetch_server_raw
+                self.GAE_IP = fetch_ip
+                self.GAE_SERVER = fetch_server
+                self.GAE_SERVER_RAW = fetch_server_raw
                 self.select_lock.release()
                 conn.close()
                 break
@@ -97,9 +97,9 @@ class Common(object):
         print '--------------------------------------------'
         print 'HTTPS Enabled: Yes'
         print 'Listen Addr  : %s:%d' % (self.LISTEN_IP, self.LISTEN_PORT)
-        print 'Local Proxy  : %s' % (self.FETCH_PROXY if self.FETCH_PROXY else 'Disabled')
-        print 'Fetch Server : %s' % self.FETCH_SERVER
-        print 'Fetch IP     : %s' % self.FETCH_IP
+        print 'Local Proxy  : %s' % (self.GAE_PROXY if self.GAE_PROXY else 'Disabled')
+        print 'GAE Server : %s' % self.GAE_SERVER
+        print 'GAE IP     : %s' % self.GAE_IP
         print '--------------------------------------------'
 
 common = Common()
@@ -280,13 +280,13 @@ class GaeFetcher(BaseFetcher):
         params = self._encode({'url':url, 'method':method, 'headers':headers, 'payload':payload})
         params = zlib.compress(params)
         for i in range(1, 3):
-            if common.FETCH_PROXY:
-                proxy_handler = urllib2.ProxyHandler(common.FETCH_PROXY)
-                request = urllib2.Request(common.FETCH_SERVER, params)
+            if common.GAE_PROXY:
+                proxy_handler = urllib2.ProxyHandler(common.GAE_PROXY)
+                request = urllib2.Request(common.GAE_SERVER, params)
             else:
                 proxy_handler = urllib2.ProxyHandler({})
-                request = urllib2.Request(common.FETCH_SERVER_RAW, params)
-                request.add_header('Host', common.FETCH_HOST)
+                request = urllib2.Request(common.GAE_SERVER_RAW, params)
+                request.add_header('Host', common.GAE_HOST)
             request.add_header('Content-Type', 'application/octet-stream')
             try:
                 continued, selected = 0, ''
