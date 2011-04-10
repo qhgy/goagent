@@ -19,44 +19,6 @@ def encode_data(dic):
 def decode_data(qs):
     return dict((k, v.decode('hex')) for k, v in (x.split('=') for x in qs.split('&')))
 
-##def _unquote_data(s):
-##    unquote_map = {'0':'\x10', '1':'=', '2':'&'}
-##    res = s.split('\x10')
-##    for i in xrange(1, len(res)):
-##        item = res[i]
-##        try:
-##            res[i] = unquote_map[item[0]] + item[1:]
-##        except KeyError:
-##            res[i] = '\x10' + item
-##    return ''.join(res)
-##
-##def decode_data(qs, keep_blank_values=False, strict_parsing=False):
-##    pairs = qs.split('&')
-##    dic = {}
-##    for name_value in pairs:
-##        if not name_value and not strict_parsing:
-##            continue
-##        nv = name_value.split('=', 1)
-##        if len(nv) != 2:
-##            if strict_parsing:
-##                raise ValueError, "bad query field: %r" % (name_value,)
-##            if keep_blank_values:
-##                nv.append('')
-##            else:
-##                continue
-##        if len(nv[1]) or keep_blank_values:
-##            dic[_unquote_data(nv[0])] = _unquote_data(nv[1])
-##    return dic
-##
-##def _quote_data(s):
-##    return str(s).replace('\x10', '\x100').replace('=','\x101').replace('&','\x102')
-##
-##def encode_data(dic):
-##    res = []
-##    for k,v in dic.iteritems():
-##        res.append('%s=%s' % (_quote_data(k), _quote_data(v)))
-##    return '&'.join(res)
-
 class MainHandler(webapp.RequestHandler):
     #FRS_Headers = ('', 'content-length', 'keep-alive', 'host', 'vary', 'via', 'x-forwarded-for',
     #              'proxy-authorization', 'proxy-connection', 'upgrade')
@@ -87,7 +49,7 @@ class MainHandler(webapp.RequestHandler):
         if not fullContent and status_code!=555:
             content = '<h2>Fetch Server Info</h2><hr noshade="noshade"><p>Code: %d</p>' \
                       '<p>Message: %s</p>' % (status_code, content)
-        headers = {'server':'GoAgent/%s' % __version__, 'content-type':'text/html', 'content-length':len(content)}
+        headers = {'server':'GoAgent GAE/%s' % __version__, 'content-type':'text/html', 'content-length':len(content)}
         self.sendResponse(status_code, headers, content, method, url)
 
     def post(self):
@@ -185,13 +147,13 @@ class MainHandler(webapp.RequestHandler):
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>GoAgent已经在工作了</title>
+        <title>GoAgent GAE/%(version)s已经在工作了</title>
     </head>
     <body>
         <table width="800" border="0" align="center">
             <tr><td align="center"><hr></td></tr>
             <tr><td align="center">
-                <b><h1>GoAgent/%s 已经在工作了</h1></b>
+                <b><h1>GoAgent GAE/%(version)s 已经在工作了</h1></b>
             </td></tr>
             <tr><td align="center"><hr></td></tr>
 
@@ -212,11 +174,11 @@ class MainHandler(webapp.RequestHandler):
         </table>
     </body>
 </html>
-''' % __version__)
+''' % dict(version=__version__))
 
 def main():
-    application = webapp.WSGIApplication([(r'/.*', MainHandler)], debug=True)
+    application = webapp.WSGIApplication([(r'/fetch.py', MainHandler)], debug=True)
     run_wsgi_app(application)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
