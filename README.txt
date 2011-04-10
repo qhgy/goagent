@@ -20,7 +20,7 @@ Q: 需要装Python或者Google Appenginge SDK后才能用GoAgent吗？
 A: 完全不用，GoAgent是绿色软件哦。
 
 Q: GoAgent有哪些弱点？
-A: 为了简单快速，GoAgent的数据基本是明文的(head+hex/gzip)
+A: 为了简单快速，GoAgent的数据没有强加密，使用的是head+hex/gzip格式来防止墙的自动过滤。
 
 Q: 为什么要叫GoAgent，而不叫GoProxy？
 A: 一开始叫GoProxy的，后来Hewig说软件名字带有proxy字样不吉利，于是就改成了GoAgent。
