@@ -70,8 +70,12 @@ class Common(object):
     def select_gae_ip(self, scheme='https'):
         '''select a available fetch server ip from proxy.ini ip list'''
         schemeval = {'http':self.GAE_HTTP, 'https':self.GAE_HTTPS}[scheme]
-        hosts = schemeval.split(':')[0].split('|')
-        port  = int(schemeval.split(':')[1])
+        try:
+            hosts = schemeval.split(':')[0].split('|')
+            port  = int(schemeval.split(':')[1])
+        except IndexError:
+            hosts = schemeval.split('|')
+            port  = {'http':80, 'https':443}[scheme]
         random.shuffle(hosts)
         for hosts in  [hosts[i:i+RandomTCPConnection.CONNECT_COUNT] for i in xrange(0,len(hosts),RandomTCPConnection.CONNECT_COUNT)]:
             conn = RandomTCPConnection(hosts, port)
@@ -239,40 +243,10 @@ class GaeFetcher(BaseFetcher):
     FR_Headers = ('', 'host', 'vary', 'via', 'x-forwarded-for', 'proxy-authorization', 'proxy-connection', 'upgrade', 'keep-alive')
 
     def _encode(self, dic):
-        def _quote(s):
-            return str(s).replace('\x10', '\x100').replace('=','\x101').replace('&','\x102')
-        res = []
-        for k,v in dic.iteritems():
-            res.append('%s=%s' % (_quote(k), _quote(v)))
-        return '&'.join(res)
+        return '&'.join('%s=%s' % (k, str(v).encode('hex')) for k, v in dic.iteritems())
 
     def _decode(self, qs, keep_blank_values=False, strict_parsing=False):
-        def _unquote(s):
-            unquote_map = {'0':'\x10', '1':'=', '2':'&'}
-            res = s.split('\x10')
-            for i in xrange(1, len(res)):
-                item = res[i]
-                try:
-                    res[i] = unquote_map[item[0]] + item[1:]
-                except KeyError:
-                    res[i] = '\x10' + item
-            return ''.join(res)
-        pairs = qs.split('&')
-        dic = {}
-        for name_value in pairs:
-            if not name_value and not strict_parsing:
-                continue
-            nv = name_value.split('=', 1)
-            if len(nv) != 2:
-                if strict_parsing:
-                    raise ValueError, 'bad query field: %r' % (name_value,)
-                if keep_blank_values:
-                    nv.append('')
-                else:
-                    continue
-            if len(nv[1]) or keep_blank_values:
-                dic[_unquote(nv[0])] = _unquote(nv[1])
-        return dic
+        return dict((k, v.decode('hex')) for k, v in (x.split('=') for x in qs.split('&')))
 
     def _fetch(self, url, method, headers, payload):
         errors = []

@@ -13,43 +13,49 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.api import urlfetch
 from google.appengine.runtime import apiproxy_errors
 
-def _unquote_data(s):
-    unquote_map = {'0':'\x10', '1':'=', '2':'&'}
-    res = s.split('\x10')
-    for i in xrange(1, len(res)):
-        item = res[i]
-        try:
-            res[i] = unquote_map[item[0]] + item[1:]
-        except KeyError:
-            res[i] = '\x10' + item
-    return ''.join(res)
-
-def decode_data(qs, keep_blank_values=False, strict_parsing=False):
-    pairs = qs.split('&')
-    dic = {}
-    for name_value in pairs:
-        if not name_value and not strict_parsing:
-            continue
-        nv = name_value.split('=', 1)
-        if len(nv) != 2:
-            if strict_parsing:
-                raise ValueError, "bad query field: %r" % (name_value,)
-            if keep_blank_values:
-                nv.append('')
-            else:
-                continue
-        if len(nv[1]) or keep_blank_values:
-            dic[_unquote_data(nv[0])] = _unquote_data(nv[1])
-    return dic
-
-def _quote_data(s):
-    return str(s).replace('\x10', '\x100').replace('=','\x101').replace('&','\x102')
-
 def encode_data(dic):
-    res = []
-    for k,v in dic.iteritems():
-        res.append('%s=%s' % (_quote_data(k), _quote_data(v)))
-    return '&'.join(res)
+    return '&'.join('%s=%s' % (k, str(v).encode('hex')) for k, v in dic.iteritems())
+
+def decode_data(qs):
+    return dict((k, v.decode('hex')) for k, v in (x.split('=') for x in qs.split('&')))
+
+##def _unquote_data(s):
+##    unquote_map = {'0':'\x10', '1':'=', '2':'&'}
+##    res = s.split('\x10')
+##    for i in xrange(1, len(res)):
+##        item = res[i]
+##        try:
+##            res[i] = unquote_map[item[0]] + item[1:]
+##        except KeyError:
+##            res[i] = '\x10' + item
+##    return ''.join(res)
+##
+##def decode_data(qs, keep_blank_values=False, strict_parsing=False):
+##    pairs = qs.split('&')
+##    dic = {}
+##    for name_value in pairs:
+##        if not name_value and not strict_parsing:
+##            continue
+##        nv = name_value.split('=', 1)
+##        if len(nv) != 2:
+##            if strict_parsing:
+##                raise ValueError, "bad query field: %r" % (name_value,)
+##            if keep_blank_values:
+##                nv.append('')
+##            else:
+##                continue
+##        if len(nv[1]) or keep_blank_values:
+##            dic[_unquote_data(nv[0])] = _unquote_data(nv[1])
+##    return dic
+##
+##def _quote_data(s):
+##    return str(s).replace('\x10', '\x100').replace('=','\x101').replace('&','\x102')
+##
+##def encode_data(dic):
+##    res = []
+##    for k,v in dic.iteritems():
+##        res.append('%s=%s' % (_quote_data(k), _quote_data(v)))
+##    return '&'.join(res)
 
 class MainHandler(webapp.RequestHandler):
     #FRS_Headers = ('', 'content-length', 'keep-alive', 'host', 'vary', 'via', 'x-forwarded-for',

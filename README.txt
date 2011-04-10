@@ -46,7 +46,6 @@ A:  DONE:
     2. 对于google的某些https域名，直接启用转发。
     3. 移植了wallproxy的_RangeFetch，支持youtube
     TODO:
-    1. 集成APJP-0.7.0
     1. 支持多个fetch server 
     2. 实现xmpp fetch
 
