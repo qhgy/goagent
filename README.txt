@@ -5,7 +5,7 @@ A: GoAgent是一个使用Python和Google Appengine SDK编写的代理软件。
 
 Q: 如何部署和使用GoAgent?
 A: 1.申请Google Appengine并创建appid
-   2.下载GoAgent https://github.com/phus/goagent/archives/master 
+   2.下载GoAgent https://github.com/phus/goagent/zipball/master
    3.双击server\upload.bat,输入你的appid和你的用户名密码，上传服务端
    4.把local\proxy.ini中的your_appid改成你申请到的appid
    好了，现在你可以运行taskbar.exe来翻墙了。
@@ -20,7 +20,7 @@ Q: 需要装Python或者Google Appenginge SDK后才能用GoAgent吗？
 A: 完全不用，GoAgent是绿色软件哦。
 
 Q: GoAgent有哪些弱点？
-A: 为了简单快速，GoAgent的数据基本是明文的(head+gzip)
+A: 为了简单快速，GoAgent的数据基本是明文的(head+hex/gzip)
 
 Q: 为什么要叫GoAgent，而不叫GoProxy？
 A: 一开始叫GoProxy的，后来Hewig说软件名字带有proxy字样不吉利，于是就改成了GoAgent。
