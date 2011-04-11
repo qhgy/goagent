@@ -34,6 +34,9 @@ A: 有两种原因，1.配置错误，具体请看 http://65px.com/1993 ，2.网
 Q: Firefox怎么不能登陆一些https网站?
 A: 打开FireFox->选项->高级->加密->查看证书->导入证书, 选择local\ssl\ca.crt, 勾选所有项，导入。
 
+Q: Chrome下如何使用GoAgent?
+A: Chrome可以安装proxy swithy插件，然后可以这样设置:图一: http://i.imgur.com/bJo1p.gif ,图二: http://i.imgur.com/aTH77.gif .注意，如果是用的ADSL或者VPN的话，需要在proxy swithy的Network中选中那个拨号连接。而且拨号连接必须是英文的(这个似乎是proxy swithy的limitation)。
+
 Q: 为什么一运行GoAgent后，py25.exe占用了40M内存？
 A: GoAgent使用psyco1.6提速，所以内存占用有点多。如果你不希望使用这个机制的话，请下载这个py25.exe然后替换 https://github.com/phus/python-tools/blob/master/py25.exe?raw=true
 
