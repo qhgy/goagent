@@ -8,7 +8,7 @@ A: 1.申请Google Appengine并创建appid
    2.下载GoAgent https://github.com/phus/goagent/zipball/master
    3.双击server\upload.bat,输入你的appid和你的用户名密码，上传服务端
    4.把local\proxy.ini中的your_appid改成你申请到的appid
-   好了，现在你可以运行taskbar.exe来翻墙了。
+   好了，现在你可以运行taskbar.exe启动代理了。
    
 Q: 如何最小化GoAgent那个黑乎乎的DOS窗口?
 A: 启动taskbar.exe之后托盘区会有GoAgent的图标，右击它就可以了。
