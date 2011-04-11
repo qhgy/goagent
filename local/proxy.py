@@ -24,7 +24,7 @@ class RandomTCPConnection(object):
     def connect(self, hosts, port):
         hosts = filter(None, hosts)
         if len(hosts) > self.CONNECT_COUNT:
-            hosts = random.sample(hosts, self.CONNECT_COUNT)
+            hosts = random.Random().sample(hosts, self.CONNECT_COUNT)
         for host in hosts:
             soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             soc.setblocking(0)
