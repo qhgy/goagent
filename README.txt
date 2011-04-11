@@ -14,22 +14,22 @@ Q: 如何最小化GoAgent那个黑乎乎的DOS窗口?
 A: 启动taskbar.exe之后托盘区会有GoAgent的图标，右击它就可以了。
 
 Q: 既然已有WallProxy/GappProxy，为什么需要有GoAgent?
-A: WallProxy项目关闭了，GappProxy半年没更新。为了应对GFW，需要一个更新快的GoAgent。
+A: WallProxy项目关闭了，GappProxy半年没更新。为了应对经常变化的网络状况，需要一个更新快的GoAgent。
 
 Q: 比WallProxy/GappProxy强在哪里？
-A: 更新快，速度快，翻墙能力强。
+A: 更新快，速度快，适应能力强。
 
 Q: 需要装Python或者Google Appenginge SDK后才能用GoAgent吗？
 A: 完全不用，GoAgent是绿色软件哦。
 
 Q: GoAgent有哪些弱点？
-A: 为了简单快速，GoAgent的数据没有强加密，使用的是head+hex/gzip格式来防止墙的自动过滤。
+A: 为了简单快速，GoAgent的数据没有强加密，使用的是head+hex/gzip格式来传输数据。
 
 Q: 为什么要叫GoAgent，而不叫GoProxy？
-A: 一开始叫GoProxy的，后来Hewig说软件名字带有proxy字样不吉利，于是就改成了GoAgent。
+A: 一开始叫GoProxy的，后来Hewig说软件名字带有proxy字样不祥，于是就改成了GoAgent。
    
 Q: 为什么有时候GoAgent运行得好好的，突然出来一个502错误？
-A: 有两种原因，1.配置错误，具体请看 http://65px.com/1993 ，2.撞墙了，GoAgent此时会尝试重连,试试刷新一下浏览器就好了。
+A: 有两种原因，1.配置错误，具体请看 http://65px.com/1993 ，2.网络出错，GoAgent此时会尝试重连,试试刷新一下浏览器就好了。
 
 Q: Firefox怎么不能登陆一些https网站?
 A: 打开FireFox->选项->高级->加密->查看证书->导入证书, 选择local\ssl\ca.crt, 勾选所有项，导入。
@@ -45,9 +45,9 @@ A: 客户端代码直接改local/proxy.py,改完重启taskbar.exe即可；服务
 
 Q: 已做的工作和将要做的工作？
 A:  DONE:
-    1. 随机获取proxy.ini中配置的可用fetch ip,提高翻墙能力
+    1. 随机获取proxy.ini中配置的可用fetch ip,提高网络适应能力
     2. 对于google的某些https域名，直接启用转发。
-    3. 移植了wallproxy的_RangeFetch，支持youtube
+    3. 移植了wallproxy的_RangeFetch，比较好的支持视频
     TODO:
     1. 支持多个fetch server 
     2. 实现xmpp fetch
