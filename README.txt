@@ -13,6 +13,9 @@ A: 1.申请Google Appengine并创建appid
 Q: 如何最小化GoAgent那个黑乎乎的DOS窗口?
 A: 启动taskbar.exe之后托盘区会有GoAgent的图标，右击它就可以了。
 
+Q: 我是Linux/Unix用户怎么办？
+A: 上传完服务端并设置好proxy.ini之后，直接运行local/proxy.py即可。需要Python 2.5+和Python-OpenSSL这个包。
+
 Q: 既然已有WallProxy/GappProxy，为什么需要有GoAgent?
 A: WallProxy项目关闭了，GappProxy半年没更新。为了应对经常变化的网络状况，需要一个更新快的GoAgent。
 
@@ -32,7 +35,7 @@ Q: 为什么有时候GoAgent运行得好好的，突然出来一个502错误？
 A: 有两种原因，1.配置错误，具体请看 http://65px.com/1993 ，2.网络出错，GoAgent此时会尝试重连,试试刷新一下浏览器就好了。
 
 Q: Firefox怎么不能登陆一些https网站?
-A: 打开FireFox->选项->高级->加密->查看证书->导入证书, 选择local\ssl\ca.crt, 勾选所有项，导入。
+A: 打开FireFox->选项->高级->加密->查看证书->导入证书, 选择local\ssl\ca.crt, 勾选所有项，导入。现在的ca.crt来自于wallproxy 0.4.0，如果已经导入过了，尝试删除后或者新建一个profile再导入。
 
 Q: Chrome下如何使用GoAgent?
 A: Chrome可以安装proxy swithy插件，然后可以这样设置:图一: http://i.imgur.com/bJo1p.gif ,图二: http://i.imgur.com/aTH77.gif .注意，如果是用的ADSL或者VPN的话，需要在proxy swithy的Network中选中那个拨号连接。而且拨号连接必须是英文的(这个似乎是proxy swithy的limitation)。
