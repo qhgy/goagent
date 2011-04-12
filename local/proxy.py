@@ -56,6 +56,7 @@ class Common(object):
         self.LISTEN_PORT = self.config.getint('listen', 'port')
         self.GAE_HOST    = self.config.get('gae', 'host')
         self.GAE_PATH    = self.config.get('gae', 'path')
+        self.GAE_PREFER  = self.config.get('gae', 'prefer')
         self.GAE_HTTP    = self.config.get('gae', 'http')
         self.GAE_HTTPS   = self.config.get('gae', 'https')
         if self.config.has_option('gae', 'proxy'):
@@ -65,7 +66,7 @@ class Common(object):
             self.GAE_PROXY = None
         self.HOSTS = dict((k, re.split(r'[,|]', v)) for k, v in self.config.items('hosts'))
         self.select_gae_ip_lock = thread.allocate_lock()
-        self.select_gae_ip('http')
+        self.select_gae_ip(self.GAE_PREFER)
 
     def select_gae_ip(self, scheme='https'):
         '''select a available fetch server ip from proxy.ini ip list'''
