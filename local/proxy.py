@@ -8,7 +8,7 @@ import errno, zlib, random, struct, traceback
 import httplib, urllib2, urlparse, socket, select
 import thread, BaseHTTPServer, SocketServer
 import ConfigParser
-import OpenSSL
+import ssl, OpenSSL
 
 __version__ = '1.0'
 __author__ =  'phus.lu@gmail.com'
