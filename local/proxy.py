@@ -56,7 +56,10 @@ class Common(object):
         self.LISTEN_PORT = self.config.getint('listen', 'port')
         self.GAE_HOST    = self.config.get('gae', 'host')
         self.GAE_PATH    = self.config.get('gae', 'path')
-        self.GAE_PREFER  = self.config.get('gae', 'prefer')
+        if self.config.has_option('gae', 'prefer'):
+            self.GAE_PREFER  = self.config.get('gae', 'prefer')
+        else:
+            self.GAE_PREFER  = 'http'
         self.GAE_HTTP    = self.config.get('gae', 'http')
         self.GAE_HTTPS   = self.config.get('gae', 'https')
         if self.config.has_option('gae', 'proxy'):
