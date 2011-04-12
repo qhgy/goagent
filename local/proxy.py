@@ -202,7 +202,7 @@ class RootCA(object):
         if not os.path.isdir(self.cert_dir):
             if os.path.isfile(self.cert_dir):
                 os.remove(self.cert_dir)
-            if os.system('ssl\\addroot.bat') != 0:
+            if os.name == 'nt' and os.system('ssl\\addroot.bat') != 0:
                 raise OSError(u'Cannot add ssl\\ca.crt as Root Trust CA')
             os.mkdir(self.cert_dir)
         #Check CA file
