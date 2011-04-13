@@ -55,6 +55,7 @@ class Common(object):
         self.LISTEN_IP   = self.config.get('listen', 'ip')
         self.LISTEN_PORT = self.config.getint('listen', 'port')
         self.GAE_HOST    = self.config.get('gae', 'host')
+        self.GAE_HOSTS   = self.GAE_HOST.split('|')
         self.GAE_PATH    = self.config.get('gae', 'path')
         if self.config.has_option('gae', 'prefer'):
             self.GAE_PREFER  = self.config.get('gae', 'prefer')
@@ -85,11 +86,11 @@ class Common(object):
             conn = RandomTCPConnection(hosts, port)
             if conn.socket is not None:
                 gae_ip     = conn.socket.getpeername()[0]
-                gae_server = '%s://%s:%s/%s' % (scheme, self.GAE_HOST, port, self.GAE_PATH.lstrip('/'))
+                gae_servers = ['%s://%s:%s/%s' % (scheme, x, port, self.GAE_PATH.lstrip('/')) for x in self.GAE_HOSTS]
                 gae_server_raw = '%s://%s:%s/%s' % (scheme, gae_ip, port, self.GAE_PATH.lstrip('/'))
                 self.select_gae_ip_lock.acquire()
                 self.GAE_IP = gae_ip
-                self.GAE_SERVER = gae_server
+                self.GAE_SERVERS = gae_servers
                 self.GAE_SERVER_RAW = gae_server_raw
                 self.select_gae_ip_lock.release()
                 conn.close()
@@ -105,8 +106,8 @@ class Common(object):
         print 'HTTPS Enabled: Yes'
         print 'Listen Addr  : %s:%d' % (self.LISTEN_IP, self.LISTEN_PORT)
         print 'Local Proxy  : %s' % (self.GAE_PROXY if self.GAE_PROXY else 'Disabled')
-        print 'GAE Server : %s' % self.GAE_SERVER
-        print 'GAE IP     : %s' % self.GAE_IP
+        print 'GAE Servers  : %s' % self.GAE_SERVERS
+        print 'GAE IP       : %s' % self.GAE_IP
         print '--------------------------------------------'
 
 common = Common()
@@ -259,11 +260,13 @@ class GaeFetcher(BaseFetcher):
         for i in range(1, 3):
             if common.GAE_PROXY:
                 proxy_handler = urllib2.ProxyHandler(common.GAE_PROXY)
+                gae_server = common.GAE_SERVERS[int(ord(os.urandom(1))/256.0 * len(common.GAE_SERVERS))]
                 request = urllib2.Request(common.GAE_SERVER, params)
             else:
                 proxy_handler = urllib2.ProxyHandler({})
                 request = urllib2.Request(common.GAE_SERVER_RAW, params)
-                request.add_header('Host', common.GAE_HOST)
+                gae_host = common.GAE_HOSTS[int(ord(os.urandom(1))/256.0 * len(common.GAE_HOSTS))]
+                request.add_header('Host', gae_host)
             request.add_header('Content-Type', 'application/octet-stream')
             try:
                 continued, selected = 0, ''
