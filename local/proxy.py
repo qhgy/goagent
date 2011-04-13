@@ -116,7 +116,8 @@ class RootCA(object):
     BASEDIR = os.path.dirname(__file__)
 
     def __init__(self):
-        homedir = os.environ['USERPROFILE' if os.name == 'nt' else 'HOME']
+        #homedir = os.environ['USERPROFILE' if os.name == 'nt' else 'HOME']
+        homedir = os.path.dirname(__file__)
         self.cert_dir = os.path.join(homedir, '.gacert')
         self.checkCA()
 
