@@ -122,6 +122,7 @@ class Taskbar(object):
         win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
 
 if __name__=='__main__':
-    t = Taskbar('py25.exe proxy.py', '')
+    os.chdir(os.path.dirname(__file__))
     os.environ['PYTHONOPTIMIZE'] = 'x'
+    t = Taskbar('py25.exe proxy.py', '')
     win32gui.PumpMessages()
