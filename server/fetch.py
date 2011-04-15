@@ -3,7 +3,7 @@
 # Based on GAppProxy by Du XiaoGang <dugang@188.com>
 # Based on WallProxy 0.4.0 by hexieshe <www.ehust@gmail.com>
 
-__version__ = '1.0'
+__version__ = 'beta'
 __author__ =  'phus.lu@gmail.com'
 
 import zlib, logging, time, re, struct
@@ -34,7 +34,7 @@ class MainHandler(webapp.RequestHandler):
         headers = encode_data(headers)
         # Build send-data
         rdata = '%s%s%s' % (struct.pack('>3I', status_code, len(headers), len(content)), headers, content)
-        if contentType.find('text')>=0 or contentType.find('application')>=0:
+        if contentType.startswith(('text', 'application')):
             data = zlib.compress(rdata)
             data = '1'+data if len(rdata)>len(data) else '0'+rdata
         else:
@@ -53,13 +53,12 @@ class MainHandler(webapp.RequestHandler):
         self.sendResponse(status_code, headers, content, method, url)
 
     def post(self):
-        request = self.request.body
-        request = decode_data(zlib.decompress(request))
+        request = decode_data(zlib.decompress(self.request.body))
 
         method = request.get('method', 'GET')
-        if not hasattr(urlfetch, method):
+        fetch_method = getattr(urlfetch, method, '')
+        if not fetch_method:
             return self.sendNotify(555, 'Invalid Method', method)
-        fetch_method = getattr(urlfetch, method)
 
         url = request.get('url', '')
         if not url.startswith('http'):
@@ -71,19 +70,21 @@ class MainHandler(webapp.RequestHandler):
         fetch_range = 'bytes=0-%d' % (MainHandler.Fetch_MaxSize - 1)
         rangeFetch = False
         headers = {}
-        for line in request.get('headers', '').split('\n'):
-            if ':' not in line:
+        for line in request.get('headers', '').splitlines():
+            kv = line.split(':', 1)
+            if len(kv) != 2:
                 continue
-            key, value = map(str.strip, line.split(':', 1))
-            keyl = key.lower()
-            #if keyl in MainHandler.FRS_Headers:
+            key = kv[0].strip().lower()
+            value = kv[1].strip()
+            #if key in MainHandler.FRS_Headers:
             #    continue
-            if keyl == 'rangefetch':
+            if key == 'rangefetch':
                 rangeFetch = True
                 continue
-            if keyl=='range' and not rangeFetch:
+            if key =='range' and not rangeFetch:
                 m = re.search(r'(\d+)?-(\d+)?', value)
-                if not m: continue
+                if not m:
+                    continue
                 m = [u and int(u) for u in m.groups()]
                 if m[0] is None and m[1] is None:
                     continue
@@ -91,7 +92,7 @@ class MainHandler(webapp.RequestHandler):
                     m[1] = 1023
                 elif m[1] is None or m[1]-m[0]+1 > MainHandler.Fetch_MaxSize:
                     m[1] = MainHandler.Fetch_MaxSize - 1 + m[0]
-                fetch_range = ('bytes=%s-%s' % (m[0], m[1])).replace('None', '')
+                fetch_range = ('bytes=%s-%s' % (m[0] if m[0] is not None else '', m[0] if m[1] is not None else ''))
             headers[key] = value
         headers['Connection'] = 'close'
 
@@ -102,7 +103,7 @@ class MainHandler(webapp.RequestHandler):
                 #    raise urlfetch.ResponseTooLargeError(None)
                 break
             except apiproxy_errors.OverQuotaError, e:
-                time.sleep(4)
+                time.sleep(2)
             except urlfetch.InvalidURLError, e:
                 return self.sendNotify(555, 'Invalid URL: %s' % e, method, url)
             except urlfetch.ResponseTooLargeError, e:
@@ -130,8 +131,8 @@ class MainHandler(webapp.RequestHandler):
             for sc in scs:
                 if re.match(r'[^ =]+ ', sc):
                     try:
-                        cookies[i] += ', '+sc
-                    except:
+                        cookies[i] = '%s, %s' % (cookies[i], sc)
+                    except IndexError:
                         pass
                 else:
                     cookies.append(sc)
@@ -147,13 +148,13 @@ class MainHandler(webapp.RequestHandler):
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>GoAgent GAE/%(version)s已经在工作了</title>
+        <title>GoAgent %(version)s on GAE/已经在工作了</title>
     </head>
     <body>
         <table width="800" border="0" align="center">
             <tr><td align="center"><hr></td></tr>
             <tr><td align="center">
-                <b><h1>GoAgent GAE/%(version)s 已经在工作了</h1></b>
+                <b><h1>GoAgent %(version)s on GAE/已经在工作了</h1></b>
             </td></tr>
             <tr><td align="center"><hr></td></tr>
 
