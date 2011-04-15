@@ -38,7 +38,10 @@ class Taskbar(object):
         hProcess, hThread, dwProcessId, dwThreadId = win32process.CreateProcess(None, self.cmd, None, None, 0, 0, None, None, win32process.STARTUPINFO())
         self.hProcess = hProcess
         try:
-            hicon = pywintypes.HANDLE(win32gui.ExtractIconEx(win32api.GetModuleFileName(0), 0)[1][0])
+            hicon, small = win32gui.ExtractIconEx(win32api.GetModuleFileName(0), 0)
+            win32gui.DestroyIcon(small[0])
+            #hicon = pywintypes.HANDLE(hicon[0])
+            hicon = hicon[0]
         except IndexError:
             hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
         self.hicon = hicon
@@ -90,8 +93,9 @@ class Taskbar(object):
         return 1
 
     def onClick(self):
-        v = ctypes.windll.user32.IsWindowVisible(ctypes.windll.kernel32.GetConsoleWindow())
-        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), {1:0,0:1}[v])
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        v = ctypes.windll.user32.IsWindowVisible(hwnd)
+        win32gui.ShowWindow(hwnd, {1:0,0:1}[v])
 
     def onDoubleClick(self):
         pass
