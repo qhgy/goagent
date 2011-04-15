@@ -12,9 +12,8 @@ WM_TASKBARNOTIFY_MENUITEM_SHOW = win32con.WM_USER + 21
 WM_TASKBARNOTIFY_MENUITEM_HIDE = win32con.WM_USER + 22
 WM_TASKBARNOTIFY_MENUITEM_EXIT = win32con.WM_USER + 23
 class Taskbar(object):
-    def __init__(self, cmd, icon, tooltip):
+    def __init__(self, cmd, tooltip):
         self.cmd = cmd
-        self.icon = icon
         message_map = {
             win32con.WM_DESTROY: self.onDestroy,
             win32con.WM_COMMAND: self.onCommand,
@@ -110,5 +109,5 @@ class Taskbar(object):
 if __name__=='__main__':
     os.chdir(os.path.dirname(__file__))
     os.environ['PYTHONOPTIMIZE'] = 'x'
-    t = Taskbar('py25.exe proxy.py', 'taskbar.exe', 'GoAgent Beta')
+    t = Taskbar('py25.exe proxy.py', 'GoAgent beta')
     win32gui.PumpMessages()

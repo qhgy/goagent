@@ -11,7 +11,7 @@ A: 1.申请Google Appengine并创建appid
    好了，现在你可以运行taskbar.exe启动代理了。
    
 Q: 如何最小化GoAgent那个黑乎乎的DOS窗口?
-A: 启动taskbar.exe之后托盘区会有GoAgent的图标，右击它就可以了。也可以编辑proxy.ini, 设置visible = 0
+A: 启动taskbar.exe之后托盘区会有GoAgent的图标，单击或者右击它就可以了。也可以编辑proxy.ini, 设置visible = 0
 
 Q: 我是Linux/Unix用户怎么办？
 A: 上传完服务端并设置好proxy.ini之后，直接运行local/proxy.py即可。需要Python 2.5+和Python-OpenSSL这个包。
