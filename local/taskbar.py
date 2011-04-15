@@ -12,11 +12,9 @@ WM_TASKBARNOTIFY_MENUITEM_SHOW = win32con.WM_USER + 21
 WM_TASKBARNOTIFY_MENUITEM_HIDE = win32con.WM_USER + 22
 WM_TASKBARNOTIFY_MENUITEM_EXIT = win32con.WM_USER + 23
 class Taskbar(object):
-    def __init__(self, cmd, icon):
+    def __init__(self, cmd, icon, tooltip):
         self.cmd = cmd
         self.icon = icon
-        self.window_visable = 1
-        self.visible = 0
         message_map = {
             win32con.WM_DESTROY: self.onDestroy,
             win32con.WM_COMMAND: self.onCommand,
@@ -41,16 +39,12 @@ class Taskbar(object):
         hProcess, hThread, dwProcessId, dwThreadId = win32process.CreateProcess(None, self.cmd, None, None, 0, 0, None, None, win32process.STARTUPINFO())
         self.hProcess = hProcess
         try:
-            icon = pywintypes.HANDLE(win32gui.ExtractIconEx(win32api.GetModuleFileName(0), 0)[1][0])
+            hicon = pywintypes.HANDLE(win32gui.ExtractIconEx(win32api.GetModuleFileName(0), 0)[1][0])
         except IndexError:
-            icon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
-        self.setIcon(icon)
-        self.show()
-        self.cmdHwnd = ctypes.windll.kernel32.GetConsoleWindow()
-
-    def setIcon(self, hicon, tooltip=None):
+            hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
         self.hicon = hicon
         self.tooltip = tooltip
+        self.show()
 
     def show(self):
         """Display the taskbar icon"""
@@ -60,8 +54,6 @@ class Taskbar(object):
             nid = (self.hwnd, 0, flags, WM_TASKBARNOTIFY, self.hicon, self.tooltip)
         else:
             nid = (self.hwnd, 0, flags, WM_TASKBARNOTIFY, self.hicon)
-        if self.visible:
-            self.hide()
         win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
         self.visible = 1
 
@@ -99,14 +91,8 @@ class Taskbar(object):
         return 1
 
     def onClick(self):
-        self.window_visable = 0 if self.window_visable else 1
-        if self.window_visable:
-            win32gui.ShowWindow(self.cmdHwnd, win32con.SW_SHOW)
-            win32gui.BringWindowToTop(self.cmdHwnd)
-            #win32gui.SetActiveWindow(self.cmdHwnd)
-            win32gui.SetForegroundWindow(self.cmdHwnd)
-        else:
-            win32gui.ShowWindow(self.cmdHwnd, win32con.SW_HIDE)
+        v = ctypes.windll.user32.IsWindowVisible(ctypes.windll.kernel32.GetConsoleWindow())
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), {1:0,0:1}[v])
 
     def onDoubleClick(self):
         pass
@@ -124,5 +110,5 @@ class Taskbar(object):
 if __name__=='__main__':
     os.chdir(os.path.dirname(__file__))
     os.environ['PYTHONOPTIMIZE'] = 'x'
-    t = Taskbar('py25.exe proxy.py', '')
+    t = Taskbar('py25.exe proxy.py', 'taskbar.exe', 'GoAgent Beta')
     win32gui.PumpMessages()
