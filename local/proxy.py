@@ -54,6 +54,7 @@ class Common(object):
         self.config.read(self.FILENAME)
         self.LISTEN_IP   = self.config.get('listen', 'ip')
         self.LISTEN_PORT = self.config.getint('listen', 'port')
+        self.LISTEN_VISIBLE = self.config.getint('listen', 'visible') if self.config.has_option('listen', 'visible') else 1
         self.GAE_HOST    = self.config.get('gae', 'host')
         self.GAE_HOSTS   = self.GAE_HOST.split('|')
         self.GAE_PATH    = self.config.get('gae', 'path')
@@ -585,5 +586,8 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer
 
 if __name__ == '__main__':
     common.show()
+    if not common.LISTEN_VISIBLE:
+        if os.name == 'nt':
+            ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
     httpd = ThreadingHTTPServer((common.LISTEN_IP, common.LISTEN_PORT), LocalProxyHandler)
     httpd.serve_forever()
