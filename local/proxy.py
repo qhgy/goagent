@@ -173,8 +173,8 @@ class RootCA(object):
     def makeCA(self):
         pkey = self.createKeyPair(bits=2048)
         subj = {'countryName': 'CN', 'stateOrProvinceName': 'Internet',
-                'localityName': 'Cernet', 'organizationName': 'WallProxy',
-                'organizationalUnitName': 'WallProxy Root', 'commonName': 'WallProxy CA'}
+                'localityName': 'Cernet', 'organizationName': 'GoAgent',
+                'organizationalUnitName': 'GoAgent Root', 'commonName': 'GoAgent CA'}
         req = self.createCertRequest(pkey, **subj)
         cert = self.createCertificate(req, (pkey, req), 0, (0, 60*60*24*7305))  #20 years
         return (self.dumpPEM(pkey, 0), self.dumpPEM(cert, 2))
@@ -183,7 +183,7 @@ class RootCA(object):
         pkey = self.createKeyPair()
         subj = {'countryName': 'CN', 'stateOrProvinceName': 'Internet',
                 'localityName': 'Cernet', 'organizationName': host,
-                'organizationalUnitName': 'WallProxy Branch', 'commonName': host}
+                'organizationalUnitName': 'GoAgent Branch', 'commonName': host}
         req = self.createCertRequest(pkey, **subj)
         cert = self.createCertificate(req, (cakey, cacrt), serial, (0, 60*60*24*7305))
         return (self.dumpPEM(pkey, 0), self.dumpPEM(cert, 2))
