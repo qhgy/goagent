@@ -57,10 +57,8 @@ class Common(object):
         self.GAE_HOST    = self.config.get('gae', 'host')
         self.GAE_HOSTS   = self.GAE_HOST.split('|')
         self.GAE_PATH    = self.config.get('gae', 'path')
-        if self.config.has_option('gae', 'prefer'):
-            self.GAE_PREFER  = self.config.get('gae', 'prefer')
-        else:
-            self.GAE_PREFER  = 'http'
+        self.GAE_PREFER  = self.config.get('gae', 'prefer') if self.config.has_option('gae', 'prefer') else 'http'
+        self.GAE_VERIFY  = self.config.getint('gae', 'verify') if self.config.has_option('gae', 'verify') else 1
         self.GAE_HTTP    = self.config.get('gae', 'http')
         self.GAE_HTTPS   = self.config.get('gae', 'https')
         if self.config.has_option('gae', 'proxy'):
@@ -70,9 +68,9 @@ class Common(object):
             self.GAE_PROXY = None
         self.HOSTS = dict((k, re.split(r'[,|]', v)) for k, v in self.config.items('hosts'))
         self.select_gae_ip_lock = thread.allocate_lock()
-        self.select_gae_ip(self.GAE_PREFER)
+        self.select_gae_ip(self.GAE_PREFER, self.GAE_VERIFY)
 
-    def select_gae_ip(self, scheme='https'):
+    def select_gae_ip(self, scheme='https', verify=1):
         '''select a available fetch server ip from proxy.ini ip list'''
         schemeval = {'http':self.GAE_HTTP, 'https':self.GAE_HTTPS}[scheme]
         try:
@@ -82,23 +80,25 @@ class Common(object):
             hosts = schemeval.split('|')
             port  = {'http':80, 'https':443}[scheme]
         random.shuffle(hosts)
-        for hosts in  [hosts[i:i+RandomTCPConnection.CONNECT_COUNT] for i in xrange(0,len(hosts),RandomTCPConnection.CONNECT_COUNT)]:
-            conn = RandomTCPConnection(hosts, port)
-            if conn.socket is not None:
-                gae_ip     = conn.socket.getpeername()[0]
-                gae_servers = ['%s://%s:%s/%s' % (scheme, x, port, self.GAE_PATH.lstrip('/')) for x in self.GAE_HOSTS]
-                gae_server_raw = '%s://%s:%s/%s' % (scheme, gae_ip, port, self.GAE_PATH.lstrip('/'))
-                self.select_gae_ip_lock.acquire()
-                self.GAE_IP = gae_ip
-                self.GAE_SERVERS = gae_servers
-                self.GAE_SERVER_RAW = gae_server_raw
-                self.select_gae_ip_lock.release()
-                conn.close()
-                break
+        if verify:
+            for hosts in  [hosts[i:i+RandomTCPConnection.CONNECT_COUNT] for i in xrange(0,len(hosts),RandomTCPConnection.CONNECT_COUNT)]:
+                conn = RandomTCPConnection(hosts, port)
+                if conn.socket is not None:
+                    gae_ip = conn.socket.getpeername()[0]
+                    conn.close()
+                    break
+                else:
+                    conn.close()
             else:
-                conn.close()
+                raise RuntimeError('Common RandomTCPConnection cannot select_gae_ip from %r!' % hosts)
         else:
-            raise RuntimeError('Common RandomTCPConnection cannot select_gae_ip from %r!' % hosts)
+            gae_ip = hosts[0]
+        self.select_gae_ip_lock.acquire()
+        self.GAE_VERIFY = verify
+        self.GAE_IP = gae_ip
+        self.GAE_SERVERS = ['%s://%s:%s/%s' % (scheme, x, port, self.GAE_PATH.lstrip('/')) for x in self.GAE_HOSTS]
+        self.GAE_SERVER_RAW = '%s://%s:%s/%s' % (scheme, gae_ip, port, self.GAE_PATH.lstrip('/'))
+        self.select_gae_ip_lock.release()
 
     def show(self):
         '''show current config'''
@@ -107,7 +107,7 @@ class Common(object):
         print 'Listen Addr  : %s:%d' % (self.LISTEN_IP, self.LISTEN_PORT)
         print 'Local Proxy  : %s' % (self.GAE_PROXY if self.GAE_PROXY else 'Disabled')
         print 'GAE Servers  : %s' % self.GAE_SERVERS
-        print 'GAE IP       : %s' % self.GAE_IP
+        print 'GAE IP       : %s%s' % (self.GAE_IP, '' if self.GAE_VERIFY else ' (NOT Verify)')
         print '--------------------------------------------'
 
 common = Common()
