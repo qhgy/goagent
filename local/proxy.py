@@ -62,7 +62,10 @@ class Common(object):
         self.GAE_PROXY      = dict(re.match(r'^(\w+)://(\S+)$', proxy.strip()).group(1, 2) for proxy in self.config.get('gae', 'proxy').split('|')) if self.config.has_option('gae', 'proxy') else {}
         self.HOSTS          = dict((k, re.split(r'[,|]', v)) for k, v in self.config.items('hosts'))
         self.select_gae_ip_lock = thread.allocate_lock()
-        self.select_gae_ip(self.GAE_PREFER, self.GAE_VERIFY)
+        try:
+            self.select_gae_ip(self.GAE_PREFER, self.GAE_VERIFY)
+        except RuntimeError:
+            self.select_gae_ip('https', 1)
 
     def select_gae_ip(self, scheme='https', verify=1):
         '''select a available fetch server ip from proxy.ini ip list'''
