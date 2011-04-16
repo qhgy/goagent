@@ -96,6 +96,7 @@ class Taskbar(object):
         hwnd = ctypes.windll.kernel32.GetConsoleWindow()
         v = ctypes.windll.user32.IsWindowVisible(hwnd)
         win32gui.ShowWindow(hwnd, {1:0,0:1}[v])
+        win32gui.SetForegroundWindow(hwnd)
 
     def onDoubleClick(self):
         pass
