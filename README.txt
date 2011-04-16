@@ -44,7 +44,7 @@ Q: 为什么一运行GoAgent后，py25.exe占用了40M内存？
 A: GoAgent使用psyco1.6提速，所以内存占用有点多。如果你不希望使用这个机制的话，请下载这个py25.exe然后替换 https://github.com/phus/python-tools/blob/master/py25.exe?raw=true
 
 Q: 支持多个fetch server吗？
-A: 目前GoAgent最新版是支持的，在proxy.ini中的[gae]项目下这样配置即可hosts=xxx.appspot.com|yyy.appspot.com|zzz.appspot.com
+A: 目前GoAgent最新版是支持的，在proxy.ini中的[gae]项目下这样配置即可host=xxx.appspot.com|yyy.appspot.com|zzz.appspot.com
 
 Q: 如何得到GoAgent的源代码？
 A: GoAgent的代码和程序是一起的，源代码就是运行程序。
