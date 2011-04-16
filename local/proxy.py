@@ -425,7 +425,8 @@ class ConnectFetcher(BaseFetcher):
             return self._forward()
 
     def _direct(self):
-        MAX_IDLING = 30
+        DIRECT_KEEPLIVE = 60
+        DIRECT_TICK = 2
         try:
             hosts = common.HOSTS[self.handler.path]
             port  = int(self.handler.path.split(':')[1])
@@ -439,23 +440,24 @@ class ConnectFetcher(BaseFetcher):
             self.handler.wfile.write('Proxy-agent: %s\r\n\r\n' % self.handler.version_string())
 
             socs = [self.handler.connection, conn.socket]
-            count = 0
+            count = DIRECT_KEEPLIVE // DIRECT_TICK
             while 1:
-                count += 1
-                (recv, _, error) = select.select(socs, [], socs, 2)
-                if error:
+                count -= 1
+                (ins, _, errors) = select.select(socs, [], socs, DIRECT_TICK)
+                if errors:
                     break
-                if recv:
-                    for in_ in recv:
-                        data = in_.recv(8192)
-                        if in_ is self.handler.connection:
-                            out = conn.socket
-                        else:
-                            out = self.handler.connection
+                if ins:
+                    for soc in ins:
+                        data = soc.recv(8192)
                         if data:
-                            out.send(data)
-                            count = 0
-                if count == MAX_IDLING:
+                            if soc is self.handler.connection:
+                                conn.socket.send(data)
+                                # if packets lost in 10 secs, maybe ssl connection was dropped by GFW
+                                count = 5
+                            else:
+                                self.handler.connection.send(data)
+                                count = DIRECT_KEEPLIVE // DIRECT_TICK
+                if count == 0:
                     break
         except:
             exc_info = traceback.format_exc()
