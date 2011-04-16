@@ -64,7 +64,8 @@ class Common(object):
         self.select_gae_ip_lock = thread.allocate_lock()
         try:
             self.select_gae_ip(self.GAE_PREFER, self.GAE_VERIFY)
-        except RuntimeError:
+        except RuntimeError, e:
+            sys.stderr.write('Common.select_gae_ip failed: %s, try switch to https mode.\n' % str(e))
             self.select_gae_ip('https', 1)
 
     def select_gae_ip(self, scheme='https', verify=1):
